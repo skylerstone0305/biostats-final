@@ -1,13 +1,43 @@
 ---
-title: "Biostatistics Final Project"
+title: "Final Project"
+subtitle: "Biostatistics (BIOL_SCI 337-0)"
 author: "Skyler Stone"
-format: html
-editor: visual
 date: today
+
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+    
+execute:
+  warning: false
+  
+from: markdown+emoji
+
+reference-location: margin
+citation-location: margin
 ---
 
-## GitHub Link
+::: {.callout-tip icon=false}
+## GitHub Repo Link
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+[biostats-final.git](https://github.com/skylerstone0305/biostats-final.git)
 
-## 
+
+:::
+
+## Exploratory Data Analysis
+![Display of Species Richness for the three Management Stages](results/data_display.png)
+
+::: {.callout-tip icon="false"}
+## Data Description
+
+Unmanaged Areas (0 years): Typically, lower species richness due to invasive species like buckthorn dominating.
+
+Early-Stage Management (10 years): An intermediate increase in species richness as invasive species are removed and native species are reintroduced.
+
+Late-Stage Management (20 years): Highest species richness, reflecting successful restoration with sustained management efforts.
+:::

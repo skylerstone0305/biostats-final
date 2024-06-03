@@ -6,6 +6,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(knitr)
+library(here)
 
 # Load the data
 diversity <- read.csv("data/2010FieldEcolDiversity.csv")
@@ -17,7 +18,7 @@ str(diversity)
 summary(diversity)
 
 # create stacked histograms ----
-ggplot(diversity, aes(x = SpeciesRichness, fill = as.factor(ManagementStage))) +
+data_display <- ggplot(diversity, aes(x = SpeciesRichness, fill = as.factor(ManagementStage))) +
   geom_histogram(position = "stack", binwidth = 1, color = 'black') +
   labs(
     title = "Stacked Histograms of SpeciesRichness by Management Stage",
@@ -26,6 +27,9 @@ ggplot(diversity, aes(x = SpeciesRichness, fill = as.factor(ManagementStage))) +
     fill = "Management Stage"
   ) +
   theme_minimal()
+
+# write out
+ggsave(here("results/data_display.png"), data_display, width = 15, height = 10, unit = "cm")
 
 # Unmanaged Areas (0 years): Typically, lower species richness due to invasive species like buckthorn dominating.
 
