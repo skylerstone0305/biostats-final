@@ -56,15 +56,13 @@ data_display <- ggplot(diversity, aes(x = SpeciesRichness, fill = as.factor(Mana
 
 ![Display of Species Richness for the three Management Stages](results/data_display.png)
 
-::: {.callout-tip icon="false"}
-## Data Description
+###### Data Description
 
 Unmanaged Areas (0 years): Typically, lower species richness due to invasive species like buckthorn dominating.
 
 Early-Stage Management (10 years): An intermediate increase in species richness as invasive species are removed and native species are reintroduced.
 
 Late-Stage Management (20 years): Highest species richness, reflecting successful restoration with sustained management efforts.
-:::
 
 ## Describing the data, with uncertainty
 
@@ -351,4 +349,72 @@ The relationship does not appear linear. It appears to be mostly random, with a 
 
 There is a strong positive correlation between `TotalCover` and `SpeciesRichness`, supporting Tilman's hypothesis that greater species diversity promotes greater productivity. The Spearman's correlation also indicates a positive correlation, although it is weaker than Pearson's correlation. While the relationship is positive, it might not be perfectly linear, which can be seen in the scatterplot. 
 
+## Regression
+```{r}
+# Linear regression of TotalCover on SpeciesRichness
+linear_model <- lm(TotalCover ~ SpeciesRichness, data = diversity)
+summary(linear_model)
 
+# QQ-plot of the regression residuals
+qqnorm(residuals(linear_model), main = "QQ Plot of Residuals for Linear Regression")
+qqline(residuals(linear_model), col = "red")
+
+```
+
+```{r}
+# Log-transform the data
+diversity$log_TotalCover <- log(diversity$TotalCover + 1)
+diversity$log_SpeciesRichness <- log(diversity$SpeciesRichness + 1)
+
+# Scatterplot of log-transformed data
+ggplot(diversity, aes(x = log_SpeciesRichness, y = log_TotalCover)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "lm", col = "red") +
+  theme_minimal() +
+  labs(title = "Scatterplot of Log-Transformed Data",
+       x = "log(SpeciesRichness + 1)",
+       y = "log(TotalCover + 1)")
+
+```
+The data appears more grouped and slightly more linear as compared to the original plot.
+
+```{r}
+# Linear regression of log-transformed data
+log_linear_model <- lm(log_TotalCover ~ log_SpeciesRichness, data = diversity)
+summary(log_linear_model)
+
+# QQ-plot of the regression residuals for log-transformed data
+qqnorm(residuals(log_linear_model), main = "QQ Plot of Residuals for Log-Transformed Linear Regression")
+qqline(residuals(log_linear_model), col = "red")
+
+```
+The QQ plot shows that the points are closer to the line, indicating a better-fitting polynomial with the log transformation as opposed to the original scale.
+
+```{r}
+# Extract regression equation and R²
+log_intercept <- coef(log_linear_model)[1]
+log_slope <- coef(log_linear_model)[2]
+log_r_squared <- summary(log_linear_model)$r.squared
+
+regression_eq <- paste("log(TotalCover + 1) =", round(log_intercept, 4), "+", round(log_slope, 4), "* log(SpeciesRichness + 1)")
+regression_r_squared <- paste("R² =", round(log_r_squared, 4))
+
+# Table the regression equation and R²
+regression_results <- data.frame(
+  Statistic = c("Regression Equation", "R²"),
+  Value = c(regression_eq, regression_r_squared)
+)
+
+print(regression_results)
+
+```
+```{r}
+# ANOVA results for the log-transformed linear regression
+anova_results <- anova(log_linear_model)
+print(anova_results)
+
+```
+The ANOVA results for the log-transformed model indicate a highly significant relationship between the log variables. In conclusion, increased species diversity increases productivity, supporting Tilman's hypothesis. 
+
+## Summary and Conclusions
+Analysis of the data provided implies that the local volunteer restoration efforts have yielded a significant effect through species diversity and productivity of the ecosystem over time. This is well demonstrated by the marked increase in SpeciesRichness and TotalCover over time, in particular for all plots with more extensive management stages. The strong positive correlation between species diversity and productivity points to how a more diverse plant community should be promoted for associated benefits, e.g. in soil regeneration and nutrient cycling. Based on the results of the log-transformed regression analysis, the benefits of each additional species on the gradient should be set according to resource exploitation principles in ecology, following the law of diminishing returns. Species composition fluctuations during the early phase are generally related to competitive dynamics and succession, all of which trend toward a more stable and productive ecosystem. Those results emphasize the value of continued volunteer effort in restoration and show real ecological benefits that return management and investment in long-term biodiversity initiatives.
