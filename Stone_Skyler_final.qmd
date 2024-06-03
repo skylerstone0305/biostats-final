@@ -9,7 +9,7 @@ format:
     toc: true
     toc-depth: 4
     embed-resources: true
-    code-fold: show
+    code-fold: true
     link-external-newwindow: true
     
 execute:
@@ -28,8 +28,32 @@ citation-location: margin
 
 
 :::
+```{r}
+#| echo: FALSE
 
+# load libraries
+library(dplyr)
+library(tidyverse)
+library(here)
+library(knitr)
+
+# Load the data
+diversity <- read.csv("data/2010FieldEcolDiversity.csv")
+
+```
 ## Exploratory Data Analysis
+```{r}
+data_display <- ggplot(diversity, aes(x = SpeciesRichness, fill = as.factor(ManagementStage))) +
+  geom_histogram(position = "stack", binwidth = 1, color = 'black') +
+  labs(
+    title = "Stacked Histograms of SpeciesRichness by Management Stage",
+    x = "Species Richness",
+    y = "Count",
+    fill = "Management Stage"
+  ) +
+  theme_minimal()
+```
+
 ![Display of Species Richness for the three Management Stages](results/data_display.png)
 
 ::: {.callout-tip icon="false"}
@@ -41,3 +65,132 @@ Early-Stage Management (10 years): An intermediate increase in species richness 
 
 Late-Stage Management (20 years): Highest species richness, reflecting successful restoration with sustained management efforts.
 :::
+
+## Describing the data, with uncertainty
+
+```{r}
+# Calculate descriptive statistics
+descriptive_stats <- diversity %>%
+  group_by(ManagementStage) %>%
+  summarise(
+    mean = mean(SpeciesRichness),
+    sd = sd(SpeciesRichness),
+    cv = sd / mean,
+    se = sd / sqrt(n())
+  )
+
+kable(descriptive_stats, caption = "Descriptive Statistics")
+```
+
+
+###### 95% confidence intervals of `SpeciesRichness` for each `ManagementStage`
+
+```{r}
+ci <- diversity %>%
+  group_by(ManagementStage) %>%
+  summarise(
+    mean = mean(SpeciesRichness),
+    se = sd(SpeciesRichness) / sqrt(n()),
+    lower_ci = mean - qt(0.975, df = n() - 1) * se,
+    upper_ci = mean + qt(0.975, df = n() - 1) * se
+  )
+
+ci_table <- kable(ci)
+
+ci_table
+```
+
+## Hypothesis Testing
+
+There is no overlap in the confidence intervals for 0years and 10years or 20years, so therefore 0years is completely different from 10years and 20years. There is, however, overlap in the confidence intervals for 10years and 20years, so therefore they are not significantly different from each other. 
+
+**Inference:** Given that 10years and 20years are not different from each other, if 20years is different from 0years, then 10years must also be different from 0years. 
+
+## Comparing two means
+
+**Null Hypothesis:** The biodiversity of buckthorn thickets is no different from the biodiversity of buckthorn thickets after continued restoration over time.
+
+###### Two-sample Welch's t-test
+```{r}
+# Hypothesis Testing ----
+# Subset data for 10years and 20years
+data_10years <- diversity %>%
+  filter(ManagementStage == "10years")
+
+data_20years <- diversity %>%
+  filter(ManagementStage == "20years")
+
+# Perform two-sample t-test
+t_test <- t.test(data_10years$SpeciesRichness, data_20years$SpeciesRichness, var.equal = FALSE)
+
+# Create a data frame for the results
+results <- data.frame(
+  Statistic = c("t-value", "Degrees of Freedom (df)", "P-value", "95% Confidence Interval", "Mean of 10years (x)", "Mean of 20years (y)"),
+  Value = c("-2.4101", "113.19", "0.01756", "(-1.6398293, -0.1601707)", "6.733333", "7.633333")
+)
+
+# Generate the HTML table
+html_table <- kable(results, format = "html", table.attr = "style='width:50%;'", caption = "Welch Two Sample t-test Results")
+
+# Print the HTML table
+html_table
+```
+## Handling Violations of Assumptions
+**Violations:**
+1. Data are normally distributed within each group
+2. The variances of the two groups are equal (homogeneity of variance)
+
+**Transformation:** Most of the data is not normally distributed, so therefore either a log transformation, a square root transformation, or a Box-Cox transformation may make the data more normal. 
+
+**Assumptions of a Mann-Whitney U-test:** 
+1. two samples are independent
+2. observations are ordinal (e.g. they can be ranked)
+
+**The data does meet the assumptions for a Mann-Whitney U-test**
+
+```{r}
+wilcox_test <- wilcox.test(data_10years$SpeciesRichness, data_20years$SpeciesRichness)
+
+# Extracting W and P-value
+W <- wilcox_test$statistic
+p_value <- wilcox_test$p.value
+
+# Print W and P-value
+cat("Mann-Whitney U-test (Wilcoxon rank sum test) results:\n")
+cat("W:", W, "\n")
+cat("P-value:", p_value, "\n")
+```
+The P-value is less than the significance level of 0.05, and therefore, indicates that there is a statistically significant difference between `SpeciesRichness` of the 10years and 20years `ManagementStages`. 
+
+## ANOVA (analysis of variance)
+
+```{r}
+# Perform ANOVA
+anova_results <- aov(SpeciesRichness ~ as.factor(ManagementStage), data = diversity)
+summary(anova_results)
+```
+```{r}
+ggplot(diversity, aes(x = ManagementStage, y = SpeciesRichness, fill = ManagementStage)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Boxplot of SpeciesRichness by ManagementStage",
+       x = "ManagementStage",
+       y = "SpeciesRichness")
+
+```
+
+```{r}
+# Perform Tukey HSD test
+tukey_results <- TukeyHSD(anova_results)
+
+print(tukey_results)
+```
+```{r}
+# Perform Kruskal-Wallis test
+kruskal_test <- kruskal.test(SpeciesRichness ~ as.factor(ManagementStage), data = diversity)
+
+print(kruskal_test)
+```
+The ANOVA results show a significant effect of `ManagementStage` on `SpeciesRichness`. The Tukey HSD test also reveals significant differences between all pairs of `ManagementStages`. The Mann-Whitney U-test results indicate a significant difference in SpeciesRichness between the 10years and 20years `ManagementStages` (p = 0.0108). The Kruskal-Wallis test confirms the ANOVA results, indicating a significant difference in `SpeciesRichness` between the `ManagementStages`. 
+
+## It's not just diversity, it's identity
