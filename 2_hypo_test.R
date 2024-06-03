@@ -56,14 +56,14 @@ ggplot(diversity, aes(x = AverageC, fill = as.factor(ManagementStage))) +
   theme_minimal()
 
 # Table of means for SpeciesRichness and AverageC
-descriptive_table <- diversity %>%
+means_table <- diversity %>%
   group_by(ManagementStage) %>%
   summarise(
     mean_SpeciesRichness = mean(SpeciesRichness),
     mean_AverageC = mean(AverageC)
   )
 
-print(descriptive_table)
+print(means_table)
 
 
 # Perform one-sample t-test

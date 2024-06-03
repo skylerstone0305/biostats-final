@@ -194,3 +194,161 @@ print(kruskal_test)
 The ANOVA results show a significant effect of `ManagementStage` on `SpeciesRichness`. The Tukey HSD test also reveals significant differences between all pairs of `ManagementStages`. The Mann-Whitney U-test results indicate a significant difference in SpeciesRichness between the 10years and 20years `ManagementStages` (p = 0.0108). The Kruskal-Wallis test confirms the ANOVA results, indicating a significant difference in `SpeciesRichness` between the `ManagementStages`. 
 
 ## It's not just diversity, it's identity
+```{r}
+# Stacked histograms for AverageC
+ggplot(diversity, aes(x = AverageC, fill = as.factor(ManagementStage))) +
+  geom_histogram(position = "stack", binwidth = 0.5, color = "black") +
+  labs(
+    title = "Stacked Histograms of AverageC by Management Stage",
+    x = "Average C",
+    y = "Count",
+    fill = "Management Stage"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+means_table <- diversity %>%
+  group_by(ManagementStage) %>%
+  summarise(
+    mean_SpeciesRichness = mean(SpeciesRichness),
+    mean_AverageC = mean(AverageC)
+  )
+
+kable(means_table)
+```
+
+The `SpeciesRichness` before restoration efforts is very low, and there is a substantial increase in `SpeciesRichness` after 10years of restoration efforts increases significantly. There is a smaller increase from 10years to 20years, indicating that the rate of increase has slowed, but stays positive nonetheless. This suggests that while new species continue to establish, competitive dynamics and ecological succession might be limiting further dramatic increases in species numbers. 
+
+The AverageC pattern is similar, with it being very low at 0years, medium at 10years, and almost doubles for 20 years. This indicates that over time, the restoration efforts are successfully favoring species that are well-suited to the managed conditions, particularly fire-loving prairie species. This shows steady improvement as opposed to the slower rate seen in the plot. 
+
+## Computer-intensive methods
+```{r}
+# Perform one-sample t-test
+one_sample_test <- t.test(data_20years$AvgOverSppC, mu = 1)
+
+print(one_sample_test)
+```
+Based on the t-test alone, it seems that we are not yet at the point where `AvgOverSppC` is significantly greater than 1, although the mean is slightly above 1. 
+```{r}
+# Histogram of AvgOverSppC
+ggplot(data_20years, aes(x = AvgOverSppC)) +
+  geom_histogram(binwidth = 0.1, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Histogram of AvgOverSppC for ManagementStage = 20years",
+       x = "AvgOverSppC",
+       y = "Count")
+
+```
+```{r}
+# Function to calculate median AvgOverSppC
+bootstrap_median <- function(data, n = 10000) {
+  medians <- numeric(n)
+  for (i in 1:n) {
+    resample <- data[sample(1:nrow(data), replace = TRUE), ]
+    resample$AvgOverSppC <- resample$AverageC / resample$SpeciesRichness
+    medians[i] <- median(resample$AvgOverSppC, na.rm = TRUE)
+  }
+  return(medians)
+}
+
+# Perform bootstrap
+set.seed(05312024)
+bootstrap_results <- bootstrap_median(data_20years)
+
+# Plot histogram of bootstrap replicates
+ggplot(data.frame(bootstrap_results), aes(x = bootstrap_results)) +
+  geom_histogram(binwidth = 0.01, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Bootstrap Distribution of Median AvgOverSppC",
+       x = "Median AvgOverSppC",
+       y = "Count")
+
+```
+```{r}
+# Calculate mean, median, and 95% CI
+boot_mean <- mean(bootstrap_results)
+boot_median <- median(bootstrap_results)
+boot_ci <- quantile(bootstrap_results, c(0.025, 0.975))
+
+results <- data.frame(
+  Statistic = c("Bootstrapped Mean", "Bootstrapped Median", "95% CI Lower", "95% CI Upper"),
+  Value = c(boot_mean, boot_median, boot_ci[1], boot_ci[2])
+)
+
+kable(results)
+
+```
+
+The bootstrapped interpretation is significantly different from the one-sample t-test interpretation, as the bootstrapped mean and mean are both well below 1. The 95% confidence interval is entirely below 1, meaning that the `AvgOverSppC` is significantly less than 1 according to the bootstrapped results. The bootstrap analysis is more robust than the one-sample t-test, and therefore, we can conclude that further work is needed to improve the composition of species in the restoration area. The above histogram confirms these results. 
+
+## Correlation
+```{r}
+# Calculate correlation
+cor_results <- cor.test(diversity$TotalCover, diversity$SpeciesRichness)
+
+# Correlation results
+correlation_results <- data.frame(
+  Statistic = c("t-value", "Degrees of Freedom (df)", "P-value", "95% CI Lower", "95% CI Upper", "Correlation Coefficient"),
+  Value = c(10.307, 139, "< 2.2e-16", 0.5530542, 0.7426924, 0.6581903)
+)
+
+# Create HTML table
+kable(correlation_results, format = "html", table.attr = "style='width:50%;'", caption = "Pearson's Product-Moment Correlation Results")
+```
+###### Check Assumptions: Linearity
+```{r}
+# Scatterplot of TotalCover vs. SpeciesRichness
+
+ggplot(diversity, aes(x = SpeciesRichness, y = TotalCover)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "lm", col = "red") +
+  theme_minimal() +
+  labs(title = "Scatterplot of TotalCover vs. SpeciesRichness",
+       x = "SpeciesRichness",
+       y = "TotalCover")
+
+```
+
+###### Check Assumptions: Normality
+```{r}
+# QQ plots for TotalCover and SpeciesRichness
+qqnorm(diversity$TotalCover, main = "QQ Plot of TotalCover")
+qqline(diversity$TotalCover, col = "red")
+
+qqnorm(diversity$SpeciesRichness, main = "QQ Plot of SpeciesRichness")
+qqline(diversity$SpeciesRichness, col = "red")
+
+```
+###### Spearman Rank Correlation
+```{r}
+# Perform Spearman rank correlation
+spearman_test <- cor.test(diversity$TotalCover, diversity$SpeciesRichness, method = "spearman")
+
+# Extract Spearman's rho
+spearman_rho <- spearman_test$estimate
+
+# Add Spearman's rho to the results table
+spearman_results <- data.frame(
+  Statistic = c("Spearman's rho"),
+  Value = c(spearman_rho)
+)
+
+# Combine Pearson and Spearman results
+combined_results <- rbind(correlation_results, spearman_results)
+
+# Create HTML table
+kable(combined_results, format = "html", table.attr = "style='width:50%;'", caption = "Correlation Results for TotalCover and SpeciesRichness")
+
+```
+###### Interpretation
+**Linearity:** 
+The relationship does not appear linear. It appears to be mostly random, with a very slight correlation. The correlation coefficient, though, indicates a medium-strength relationship. Therefore, there is a medium-strength linear relationship.
+
+**Normality:** The points do not deviate significantly from the line, indicating that both `TotalCover` and `SpeciesRichness` are roughly normally distributed. 
+
+**Given that normality is not violated, we proceed with the Pearson's product-moment correlation.**
+
+There is a strong positive correlation between `TotalCover` and `SpeciesRichness`, supporting Tilman's hypothesis that greater species diversity promotes greater productivity. The Spearman's correlation also indicates a positive correlation, although it is weaker than Pearson's correlation. While the relationship is positive, it might not be perfectly linear, which can be seen in the scatterplot. 
+
+
